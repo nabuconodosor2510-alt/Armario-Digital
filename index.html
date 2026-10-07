@@ -127,7 +127,7 @@
             object-fit: contain;
         }
 
-        /* Spinner Animado Fluido */
+        /* Spinner Animado Fluido (Bolita de carga) */
         .spinner-container {
             display: flex;
             align-items: center;
@@ -207,7 +207,7 @@
 
         <div id="loaderAuth" class="spinner-container hidden">
             <div class="spinner"></div>
-            <span id="txtLoaderAuth">Conectando...</span>
+            <span id="txtLoaderAuth">Conectando con Google Sheets...</span>
         </div>
 
         <button onclick="ejecutarAuth('login')">Iniciar Sesión</button>
@@ -303,7 +303,7 @@
 
     <script>
         // CONFIGURACIÓN: Pega aquí tu URL de Google Apps Script que termina en /exec
-        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbx8KknY91xDvu9Z_vU3FEzPMf-OasAd_bGEeq8B-awUeWp00y2XNF9QHMfLGImj0WQK/exec";
+        const URL_SCRIPT = https://script.google.com/macros/s/AKfycbx8KknY91xDvu9Z_vU3FEzPMf-OasAd_bGEeq8B-awUeWp00y2XNF9QHMfLGImj0WQK/exec;
 
         let usuarioActual = null;
         let fotoCuerpoTemp = "";
@@ -315,7 +315,29 @@
             document.getElementById('pageTitle').innerText = nuevoTitulo;
         }
 
-        // --- SISTEMA DE IA CARGADO DE FORMA SEGURA (SIN BLOQUEOS) ---
+        // --- PETICIÓN SEGURA AL BACKEND ---
+        async function enviarDatosSheets(payload) {
+            try {
+                const respuesta = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    mode: "cors",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+                const texto = await respuesta.text();
+                return JSON.parse(texto);
+            } catch (error) {
+                // Si ocurre un bloqueo CORS estricto de navegador, reintentamos con text/plain limpio
+                const respuestaAlt = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify(payload)
+                });
+                const textoAlt = await respuestaAlt.text();
+                return JSON.parse(textoAlt);
+            }
+        }
+
+        // --- SISTEMA DE IA CARGADO DE FORMA SEGURA ---
         async function procesarFotoConIA(event, tipoProceso) {
             const file = event.target.files[0];
             if (!file) return;
@@ -389,11 +411,7 @@
             loader.classList.remove('hidden');
 
             try {
-                const respuesta = await fetch(URL_SCRIPT, {
-                    method: "POST",
-                    body: JSON.stringify({ accion: "login", correo, password })
-                });
-                const res = await respuesta.json();
+                const res = await enviarDatosSheets({ accion: "login", correo, password });
                 loader.classList.add('hidden');
 
                 if (res.status === "success") {
@@ -407,7 +425,7 @@
                 }
             } catch (e) {
                 loader.classList.add('hidden');
-                alert("Error de conexión con Google Sheets. Verifica tu URL.");
+                alert("Error de conexión con Google Sheets. Asegúrate de haber actualizado la implementación como 'Nueva versión'.");
             }
         }
 
@@ -440,16 +458,12 @@
             loader.classList.remove('hidden');
 
             try {
-                const respuesta = await fetch(URL_SCRIPT, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        accion: "registro",
-                        correo,
-                        password,
-                        fotoCuerpo: fotoCuerpoTemp
-                    })
+                const res = await enviarDatosSheets({
+                    accion: "registro",
+                    correo,
+                    password,
+                    fotoCuerpo: fotoCuerpoTemp
                 });
-                const res = await respuesta.json();
                 loader.classList.add('hidden');
 
                 if (res.status === "success") {
@@ -483,16 +497,12 @@
             loader.classList.remove('hidden');
 
             try {
-                const respuesta = await fetch(URL_SCRIPT, {
-                    method: "POST",
-                    body: JSON.stringify({
-                        accion: "guardarPrenda",
-                        correo: usuarioActual,
-                        categoria,
-                        urlImagen: imagenPrendaTemp
-                    })
+                const res = await enviarDatosSheets({
+                    accion: "guardarPrenda",
+                    correo: usuarioActual,
+                    categoria,
+                    urlImagen: imagenPrendaTemp
                 });
-                const res = await respuesta.json();
                 loader.classList.add('hidden');
 
                 if (res.status === "success") {
@@ -510,11 +520,7 @@
 
         async function cargarPrendasArmario() {
             try {
-                const respuesta = await fetch(URL_SCRIPT, {
-                    method: "POST",
-                    body: JSON.stringify({ accion: "obtenerPrendas", correo: usuarioActual })
-                });
-                const res = await respuesta.json();
+                const res = await enviarDatosSheets({ accion: "obtenerPrendas", correo: usuarioActual });
                 if (res.status === "success") {
                     listaMisPrendas = res.prendas;
                     renderizarGrillaPrendas();
@@ -546,10 +552,7 @@
 
         async function cambiarEstadoPrenda(idPrenda, nuevoEstado) {
             try {
-                await fetch(URL_SCRIPT, {
-                    method: "POST",
-                    body: JSON.stringify({ accion: "cambiarEstado", idPrenda, estado: nuevoEstado })
-                });
+                await enviarDatosSheets({ accion: "cambiarEstado", idPrenda, estado: nuevoEstado });
                 cargarPrendasArmario();
             } catch (e) {
                 alert("No se pudo cambiar el estado.");
@@ -585,6 +588,9 @@
                 </div>
             `;
         }
+    </script>
+</body>
+</html>
     </script>
 </body>
 </html>
