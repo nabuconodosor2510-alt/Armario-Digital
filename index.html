@@ -127,11 +127,28 @@
             object-fit: contain;
         }
 
-        .loader {
+        /* Spinner Animado (Bolita de carga fluida) */
+        .spinner-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 12px 0;
             color: var(--accent);
             font-weight: bold;
-            margin: 10px 0;
             font-size: 13px;
+        }
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(34, 197, 94, 0.2);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         /* Cuadrícula de armario */
@@ -190,6 +207,11 @@
         <input type="email" id="authCorreo" placeholder="Correo electrónico">
         <input type="password" id="authPassword" placeholder="Contraseña">
 
+        <div id="loaderAuth" class="spinner-container hidden">
+            <div class="spinner"></div>
+            <span id="txtLoaderAuth">Conectando...</span>
+        </div>
+
         <button onclick="ejecutarAuth('login')">Iniciar Sesión</button>
         <button class="btn-secondary" onclick="mostrarRegistroCuerpo()">Registrarse con Foto Base</button>
     </div>
@@ -199,7 +221,10 @@
         <h2>Foto Base (Maniquí)</h2>
         <p>Tómate una foto de cuerpo completo. La IA limpiará el fondo.</p>
 
-        <div id="loaderRegistro" class="loader hidden">Procesando cuerpo con IA...</div>
+        <div id="loaderRegistro" class="spinner-container hidden">
+            <div class="spinner"></div>
+            <span>Procesando cuerpo con IA...</span>
+        </div>
 
         <div class="preview-box hidden" id="marcoRegistro">
             <img id="imgRegistroPreview" alt="Cuerpo base">
@@ -209,6 +234,11 @@
             <input type="file" accept="image/*" onchange="procesarFotoConIA(event, 'registroCuerpo')">
             📷 Capturar / Subir Foto Base
         </label>
+
+        <div id="loaderCrearCuenta" class="spinner-container hidden">
+            <div class="spinner"></div>
+            <span>Guardando cuenta en Google Sheets...</span>
+        </div>
 
         <button id="btnFinalizarRegistro" class="hidden" onclick="completarRegistroUsuario()">Crear Cuenta</button>
         <button class="btn-secondary" onclick="volverLogin()">Volver</button>
@@ -232,7 +262,11 @@
                 <option value="accesorios">Accesorios</option>
             </select>
 
-            <div id="loaderPrenda" class="loader hidden">Quitando fondo a la prenda...</div>
+            <div id="loaderPrenda" class="spinner-container hidden">
+                <div class="spinner"></div>
+                <span>Quitando fondo a la prenda...</span>
+            </div>
+
             <div class="preview-box hidden" id="marcoPrendaPreview">
                 <img id="imgPrendaPreview" alt="Prenda recortada">
             </div>
@@ -241,6 +275,12 @@
                 <input type="file" accept="image/*" onchange="procesarFotoConIA(event, 'nuevaPrenda')">
                 ➕ Añadir Nueva Prenda
             </label>
+
+            <div id="loaderGuardarPrenda" class="spinner-container hidden">
+                <div class="spinner"></div>
+                <span>Subiendo prenda al armario...</span>
+            </div>
+
             <button id="btnGuardarPrendaCloud" class="hidden" onclick="guardarPrendaEnNube()">Guardar en el Armario</button>
 
             <div class="grid-prendas" id="listaPrendasGrid">
@@ -268,8 +308,8 @@
     </div>
 
     <script>
-        // CONFIGURACIÓN: Pega aquí tu URL de Google Apps Script (.gs)
-        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwkNaYeu2W7dSauYp2s-Ebsp3LVzygNbQbugKfuuZ8noQQiqiyj6ArBc6SDI1tSRDPO/exec";
+        // CONFIGURACIÓN: Pega aquí tu URL de Google Apps Script (.gs) que termina en /exec
+        const URL_SCRIPT = https://script.google.com/macros/s/AKfycbx8KknY91xDvu9Z_vU3FEzPMf-OasAd_bGEeq8B-awUeWp00y2XNF9QHMfLGImj0WQK/exec;
 
         let usuarioActual = null;
         let fotoCuerpoTemp = "";
@@ -346,13 +386,17 @@
                 return;
             }
 
-            alert("Conectando con Google Sheets...");
+            const loader = document.getElementById('loaderAuth');
+            document.getElementById('txtLoaderAuth').innerText = "Iniciando sesión...";
+            loader.classList.remove('hidden');
+
             try {
                 const respuesta = await fetch(URL_SCRIPT, {
                     method: "POST",
                     body: JSON.stringify({ accion: "login", correo, password })
                 });
                 const res = await respuesta.json();
+                loader.classList.add('hidden');
 
                 if (res.status === "success") {
                     usuarioActual = correo;
@@ -364,7 +408,8 @@
                     alert(res.message);
                 }
             } catch (e) {
-                alert("Error de conexión con el Apps Script.");
+                loader.classList.add('hidden');
+                alert("Error de conexión con Google Sheets. Verifica la URL.");
             }
         }
 
@@ -393,7 +438,9 @@
                 return;
             }
 
-            alert("Registrando usuario en Google Sheets...");
+            const loader = document.getElementById('loaderCrearCuenta');
+            loader.classList.remove('hidden');
+
             try {
                 const respuesta = await fetch(URL_SCRIPT, {
                     method: "POST",
@@ -405,14 +452,21 @@
                     })
                 });
                 const res = await respuesta.json();
+                loader.classList.add('hidden');
+
                 if (res.status === "success") {
-                    alert("¡Cuenta creada con éxito! Ahora inicia sesión.");
-                    volverLogin();
+                    alert("¡Cuenta creada con éxito!");
+                    usuarioActual = correo;
+                    document.getElementById('saludoUsuario').innerText = "Armario de: " + correo;
+                    document.getElementById('seccionRegistroCuerpo').classList.add('hidden');
+                    document.getElementById('seccionPrincipal').classList.remove('hidden');
+                    cargarPrendasArmario();
                 } else {
                     alert(res.message);
                 }
             } catch (e) {
-                alert("Error al registrar.");
+                loader.classList.add('hidden');
+                alert("Error al registrar en Google Sheets.");
             }
         }
 
@@ -427,7 +481,9 @@
             const categoria = document.getElementById('categoriaNuevaPrenda').value;
             if (!imagenPrendaTemp) return;
 
-            alert("Guardando prenda...");
+            const loader = document.getElementById('loaderGuardarPrenda');
+            loader.classList.remove('hidden');
+
             try {
                 const respuesta = await fetch(URL_SCRIPT, {
                     method: "POST",
@@ -439,6 +495,8 @@
                     })
                 });
                 const res = await respuesta.json();
+                loader.classList.add('hidden');
+
                 if (res.status === "success") {
                     alert("¡Prenda guardada en el armario!");
                     document.getElementById('marcoPrendaPreview').classList.add('hidden');
@@ -447,6 +505,7 @@
                     cargarPrendasArmario();
                 }
             } catch (e) {
+                loader.classList.add('hidden');
                 alert("Error al guardar prenda.");
             }
         }
@@ -470,6 +529,11 @@
         function renderizarGrillaPrendas() {
             const grid = document.getElementById('listaPrendasGrid');
             grid.innerHTML = "";
+
+            if (listaMisPrendas.length === 0) {
+                grid.innerHTML = `<p style="grid-column: span 2; text-align: center; color: var(--text-muted);">Tu armario está vacío. ¡Añade prendas!</p>`;
+                return;
+            }
 
             listaMisPrendas.forEach(p => {
                 grid.innerHTML += `
@@ -514,7 +578,6 @@
                 return;
             }
 
-            // Selecciona aleatoriamente una prenda disponible para armar la combinación
             const prendaAleatoria = listaMisPrendas[Math.floor(Math.random() * listaMisPrendas.length)];
             
             contenedor.innerHTML = `
