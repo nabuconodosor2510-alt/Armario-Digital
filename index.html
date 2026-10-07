@@ -32,7 +32,7 @@
             min-height: 100vh;
         }
         .header-editable {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             font-weight: bold;
             color: var(--primary);
             margin-bottom: 15px;
@@ -53,6 +53,7 @@
             box-sizing: border-box;
             text-align: center;
             margin-bottom: 20px;
+            position: relative;
         }
         h2 { margin-top: 0; color: #fff; font-size: 1.4rem; }
         p { color: var(--text-muted); font-size: 13px; }
@@ -127,22 +128,30 @@
             object-fit: contain;
         }
 
-        /* Spinner Animado Fluido (Bolita de carga) */
-        .spinner-container {
+        /* Pantalla de Carga Global Full Screen */
+        #globalLoader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(5px);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 10px;
-            margin: 12px 0;
-            color: var(--accent);
+            z-index: 9999;
+            gap: 15px;
+            color: white;
             font-weight: bold;
-            font-size: 13px;
+            font-size: 16px;
         }
-        .spinner {
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(34, 197, 94, 0.2);
-            border-top: 3px solid var(--accent);
+        .spinner-grande {
+            width: 45px;
+            height: 45px;
+            border: 4px solid rgba(99, 102, 241, 0.2);
+            border-top: 4px solid var(--primary);
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
@@ -151,22 +160,82 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Botón Flotante para Añadir Prenda (+) */
+        .header-armario-flex {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .btn-fab-agregar {
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            font-size: 20px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(99, 102, 241, 0.4);
+            transition: transform 0.2s;
+            margin-top: 0;
+            width: auto;
+            padding: 0 12px;
+            gap: 5px;
+        }
+        .btn-fab-agregar:hover { background: var(--primary-hover); transform: scale(1.05); }
+
+        /* Panel Desplegable para Agregar Prenda */
+        #panelAgregarPrenda {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            text-align: left;
+            position: relative;
+        }
+        .btn-cerrar-panel {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 18px;
+            cursor: pointer;
+            width: auto;
+            padding: 0;
+            margin: 0;
+        }
+        .btn-cerrar-panel:hover { color: white; }
+
         .grid-prendas {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            max-height: 300px;
+            gap: 12px;
+            max-height: 400px;
             overflow-y: auto;
-            margin-top: 15px;
+            margin-top: 10px;
+            padding-right: 4px;
         }
         .card-prenda {
             background: rgba(255,255,255,0.03);
             border: 1px solid var(--border-color);
             border-radius: 10px;
-            padding: 8px;
+            padding: 10px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            position: relative;
+        }
+        .card-prenda.no-disponible {
+            opacity: 0.5;
+            filter: grayscale(40%);
         }
         .card-prenda img {
             width: 80px;
@@ -180,7 +249,7 @@
             font-size: 10px;
             padding: 3px 6px;
             border-radius: 4px;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             font-weight: bold;
         }
         .badge-disponible { background: rgba(34, 197, 94, 0.2); color: var(--accent); }
@@ -188,12 +257,21 @@
         
         .nav-tabs {
             display: flex;
-            gap: 5px;
+            gap: 8px;
             margin-bottom: 15px;
+        }
+        .nav-tabs button {
+            margin-top: 0;
         }
     </style>
 </head>
 <body>
+
+    <!-- LOADER GLOBAL FULL SCREEN -->
+    <div id="globalLoader" class="hidden">
+        <div class="spinner-grande"></div>
+        <span id="txtGlobalLoader">Cargando...</span>
+    </div>
 
     <input type="text" id="inputTituloApp" class="header-editable" value="✨ Mi Armario IA ✨" oninput="cambiarTituloApp()">
 
@@ -205,11 +283,6 @@
         <input type="email" id="authCorreo" placeholder="Correo electrónico">
         <input type="password" id="authPassword" placeholder="Contraseña">
 
-        <div id="loaderAuth" class="spinner-container hidden">
-            <div class="spinner"></div>
-            <span id="txtLoaderAuth">Conectando con Google Sheets...</span>
-        </div>
-
         <button onclick="ejecutarAuth('login')">Iniciar Sesión</button>
         <button class="btn-secondary" onclick="mostrarRegistroCuerpo()">Registrarse con Foto Base</button>
     </div>
@@ -218,11 +291,6 @@
     <div class="container hidden" id="seccionRegistroCuerpo">
         <h2>Foto Base (Maniquí)</h2>
         <p>Tómate una foto de cuerpo completo. La IA limpiará el fondo.</p>
-
-        <div id="loaderRegistro" class="spinner-container hidden">
-            <div class="spinner"></div>
-            <span>Procesando cuerpo con IA...</span>
-        </div>
 
         <div class="preview-box hidden" id="marcoRegistro">
             <img id="imgRegistroPreview" alt="Cuerpo base">
@@ -233,53 +301,47 @@
             📷 Capturar / Subir Foto Base
         </label>
 
-        <div id="loaderCrearCuenta" class="spinner-container hidden">
-            <div class="spinner"></div>
-            <span>Guardando cuenta en Google Sheets...</span>
-        </div>
-
         <button id="btnFinalizarRegistro" class="hidden" onclick="completarRegistroUsuario()">Crear Cuenta</button>
         <button class="btn-secondary" onclick="volverLogin()">Volver</button>
     </div>
 
     <!-- SECCIÓN 3: PANEL PRINCIPAL (ARMARIO Y OUTFITS) -->
     <div class="container hidden" id="seccionPrincipal">
-        <h2 id="saludoUsuario">Mi Armario</h2>
-        
         <div class="nav-tabs">
-            <button onclick="cambiarTab('armario')">👕 Ropa</button>
-            <button onclick="cambiarTab('outfit')">✨ Crear Outfit</button>
+            <button onclick="cambiarTab('armario')">👕 Armario</button>
+            <button class="btn-secondary" onclick="cambiarTab('outfit')">✨ Crear Outfit</button>
         </div>
 
-        <!-- Sub-pestaña Ropa -->
+        <!-- Sub-pestaña Armario -->
         <div id="tabArmario">
-            <select id="categoriaNuevaPrenda">
-                <option value="superior">Parte Superior (Polos, Camisas)</option>
-                <option value="inferior">Parte Inferior (Pantalones, Shorts)</option>
-                <option value="calzado">Calzado</option>
-                <option value="accesorios">Accesorios</option>
-            </select>
-
-            <div id="loaderPrenda" class="spinner-container hidden">
-                <div class="spinner"></div>
-                <span>Quitando fondo a la prenda...</span>
+            <div class="header-armario-flex">
+                <span id="saludoUsuario" style="font-weight: bold; font-size: 14px; color: var(--text-muted);">Mis Prendas</span>
+                <button class="btn-fab-agregar" onclick="togglePanelAgregar(true)" title="Añadir Prenda">➕ Añadir</button>
             </div>
 
-            <div class="preview-box hidden" id="marcoPrendaPreview">
-                <img id="imgPrendaPreview" alt="Prenda recortada">
+            <!-- Panel Desplegable para Añadir Prenda -->
+            <div id="panelAgregarPrenda" class="hidden">
+                <button class="btn-cerrar-panel" onclick="togglePanelAgregar(false)">✕</button>
+                <p style="margin-top: 0; font-weight: bold; color: white;">Añadir Nueva Prenda</p>
+                
+                <select id="categoriaNuevaPrenda">
+                    <option value="superior">Parte Superior (Polos, Camisas)</option>
+                    <option value="inferior">Parte Inferior (Pantalones, Shorts)</option>
+                    <option value="calzado">Calzado</option>
+                    <option value="accesorios">Accesorios</option>
+                </select>
+
+                <div class="preview-box hidden" id="marcoPrendaPreview">
+                    <img id="imgPrendaPreview" alt="Prenda recortada">
+                </div>
+
+                <label class="custom-file-upload">
+                    <input type="file" accept="image/*" onchange="procesarFotoConIA(event, 'nuevaPrenda')">
+                    📸 Seleccionar Prenda
+                </label>
+
+                <button id="btnGuardarPrendaCloud" class="hidden" onclick="guardarPrendaEnNube()">Guardar en el Armario</button>
             </div>
-
-            <label class="custom-file-upload">
-                <input type="file" accept="image/*" onchange="procesarFotoConIA(event, 'nuevaPrenda')">
-                ➕ Añadir Nueva Prenda
-            </label>
-
-            <div id="loaderGuardarPrenda" class="spinner-container hidden">
-                <div class="spinner"></div>
-                <span>Subiendo prenda al armario...</span>
-            </div>
-
-            <button id="btnGuardarPrendaCloud" class="hidden" onclick="guardarPrendaEnNube()">Guardar en el Armario</button>
 
             <div class="grid-prendas" id="listaPrendasGrid"></div>
         </div>
@@ -298,12 +360,11 @@
             <div id="resultadoOutfit" style="margin-top: 15px;"></div>
         </div>
 
-        <button class="btn-secondary" style="margin-top: 20px;" onclick="cerrarSesion()">Cerrar Sesión</button>
+        <button class="btn-secondary" style="margin-top: 25px;" onclick="cerrarSesion()">Cerrar Sesión</button>
     </div>
 
     <script>
-        // CONFIGURACIÓN: Pega aquí tu URL de Google Apps Script que termina en /exec
-        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwNAsbPYV73ps436XpnBKtWPOTh4O7fKMvOjSLzq4r9tY-gSvJKvEfjA5BdNrp2nKK9/exec";
+        const URL_SCRIPT = "TU_URL_DE_APPS_SCRIPT_AQUI";
 
         let usuarioActual = null;
         let fotoCuerpoTemp = "";
@@ -315,7 +376,15 @@
             document.getElementById('pageTitle').innerText = nuevoTitulo;
         }
 
-        // --- PETICIÓN SEGURA AL BACKEND ---
+        function mostrarLoader(texto) {
+            document.getElementById('txtGlobalLoader').innerText = texto;
+            document.getElementById('globalLoader').classList.remove('hidden');
+        }
+
+        function ocultarLoader() {
+            document.getElementById('globalLoader').classList.add('hidden');
+        }
+
         async function enviarDatosSheets(payload) {
             try {
                 const respuesta = await fetch(URL_SCRIPT, {
@@ -325,17 +394,16 @@
                 const texto = await respuesta.text();
                 return JSON.parse(texto);
             } catch (error) {
-                throw new Error("No se pudo conectar con Google Sheets.");
+                throw new Error("No se pudo conectar con el servidor.");
             }
         }
 
-        // --- SISTEMA DE IA CARGADO DE FORMA SEGURA ---
         async function procesarFotoConIA(event, tipoProceso) {
             const file = event.target.files[0];
             if (!file) return;
 
-            const loaderId = tipoProceso === 'registroCuerpo' ? 'loaderRegistro' : 'loaderPrenda';
-            document.getElementById(loaderId).classList.remove('hidden');
+            const mensaje = tipoProceso === 'registroCuerpo' ? 'Procesando cuerpo con IA...' : 'Quitando fondo a la prenda...';
+            mostrarLoader(mensaje);
 
             try {
                 const selfieSegmentation = new SelfieSegmentation({
@@ -369,26 +437,24 @@
                             document.getElementById('imgRegistroPreview').src = fotoCuerpoTemp;
                             document.getElementById('marcoRegistro').classList.remove('hidden');
                             document.getElementById('btnFinalizarRegistro').classList.remove('hidden');
-                            document.getElementById('loaderRegistro').classList.add('hidden');
                         } else if (tipoProceso === 'nuevaPrenda') {
                             imagenPrendaTemp = resultadoB64;
                             document.getElementById('imgPrendaPreview').src = imagenPrendaTemp;
                             document.getElementById('marcoPrendaPreview').classList.remove('hidden');
                             document.getElementById('btnGuardarPrendaCloud').classList.remove('hidden');
-                            document.getElementById('loaderPrenda').classList.add('hidden');
                         }
+                        occultarLoader();
                     });
 
                     await selfieSegmentation.send({ image: img });
                 };
                 reader.readAsDataURL(file);
             } catch (err) {
-                document.getElementById(loaderId).classList.add('hidden');
+                occultarLoader();
                 alert("Error al procesar la imagen con IA.");
             }
         }
 
-        // --- AUTENTICACIÓN ---
         async function ejecutarAuth(accion) {
             const correo = document.getElementById('authCorreo').value.trim();
             const password = document.getElementById('authPassword').value.trim();
@@ -398,17 +464,14 @@
                 return;
             }
 
-            const loader = document.getElementById('loaderAuth');
-            document.getElementById('txtLoaderAuth').innerText = "Iniciando sesión...";
-            loader.classList.remove('hidden');
+            mostrarLoader("Iniciando sesión...");
 
             try {
                 const res = await enviarDatosSheets({ accion: "login", correo, password });
-                loader.classList.add('hidden');
+                occultarLoader();
 
                 if (res.status === "success") {
                     usuarioActual = correo;
-                    document.getElementById('saludoUsuario').innerText = "Armario de: " + correo;
                     document.getElementById('seccionAuth').classList.add('hidden');
                     document.getElementById('seccionPrincipal').classList.remove('hidden');
                     cargarPrendasArmario();
@@ -416,7 +479,7 @@
                     alert(res.message);
                 }
             } catch (e) {
-                loader.classList.add('hidden');
+                occultarLoader();
                 alert(e.message);
             }
         }
@@ -446,8 +509,7 @@
                 return;
             }
 
-            const loader = document.getElementById('loaderCrearCuenta');
-            loader.classList.remove('hidden');
+            mostrarLoader("Registrando usuario...");
 
             try {
                 const res = await enviarDatosSheets({
@@ -456,12 +518,11 @@
                     password,
                     fotoCuerpo: fotoCuerpoTemp
                 });
-                loader.classList.add('hidden');
+                occultarLoader();
 
                 if (res.status === "success") {
                     alert("¡Cuenta creada con éxito!");
                     usuarioActual = correo;
-                    document.getElementById('saludoUsuario').innerText = "Armario de: " + correo;
                     document.getElementById('seccionRegistroCuerpo').classList.add('hidden');
                     document.getElementById('seccionPrincipal').classList.remove('hidden');
                     cargarPrendasArmario();
@@ -469,7 +530,7 @@
                     alert(res.message);
                 }
             } catch (e) {
-                loader.classList.add('hidden');
+                occultarLoader();
                 alert(e.message);
             }
         }
@@ -479,29 +540,38 @@
             document.getElementById('seccionPrincipal').classList.add('hidden');
             document.getElementById('seccionAuth').classList.remove('hidden');
         }
-async function guardarPrendaEnNube() {
+
+        function togglePanelAgregar(mostrar) {
+            const panel = document.getElementById('panelAgregarPrenda');
+            if (mostrar) {
+                panel.classList.remove('hidden');
+            } else {
+                panel.classList.add('hidden');
+                imagenPrendaTemp = "";
+                document.getElementById('marcoPrendaPreview').classList.add('hidden');
+                document.getElementById('btnGuardarPrendaCloud').classList.add('hidden');
+            }
+        }
+
+        async function guardarPrendaEnNube() {
             const categoria = document.getElementById('categoriaNuevaPrenda').value;
             if (!imagenPrendaTemp) return;
 
-            const loader = document.getElementById('loaderGuardarPrenda');
-            loader.classList.remove('hidden');
+            mostrarLoader("Subiendo prenda al armario...");
 
             try {
-                // Comprimir la imagen antes de enviarla para evitar bloqueos por tamaño
                 const img = new Image();
                 img.src = imagenPrendaTemp;
                 
                 img.onload = async function() {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 400; // Ancho máximo optimizado para la nube
+                    const MAX_WIDTH = 400;
                     const scaleSize = MAX_WIDTH / img.width;
                     canvas.width = MAX_WIDTH;
                     canvas.height = img.height * scaleSize;
 
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
-                    // Convertir a JPEG comprimido para reducir el peso drásticamente
                     const imagenComprimida = canvas.toDataURL('image/jpeg', 0.7);
 
                     const res = await enviarDatosSheets({
@@ -511,22 +581,18 @@ async function guardarPrendaEnNube() {
                         urlImagen: imagenComprimida
                     });
                     
-                    loader.classList.remove('hidden'); // Asegurar estado del loader
+                    occultarLoader();
 
                     if (res.status === "success") {
                         alert("¡Prenda guardada en el armario!");
-                        document.getElementById('marcoPrendaPreview').classList.add('hidden');
-                        document.getElementById('btnGuardarPrendaCloud').classList.add('hidden');
-                        imagenPrendaTemp = "";
-                        loader.classList.add('hidden');
+                        togglePanelAgregar(false);
                         cargarPrendasArmario();
                     } else {
-                        loader.classList.add('hidden');
                         alert(res.message);
                     }
                 };
             } catch (e) {
-                loader.classList.add('hidden');
+                occultarLoader();
                 alert("Error al comprimir o subir la prenda.");
             }
         }
@@ -548,38 +614,52 @@ async function guardarPrendaEnNube() {
             grid.innerHTML = "";
 
             if (listaMisPrendas.length === 0) {
-                grid.innerHTML = `<p style="grid-column: span 2; text-align: center; color: var(--text-muted);">Tu armario está vacío. ¡Añade prendas!</p>`;
+                grid.innerHTML = `<p style="grid-column: span 2; text-align: center; color: var(--text-muted);">Tu armario está vacío. ¡Añade prendas con el botón +!</p>`;
                 return;
             }
 
             listaMisPrendas.forEach(p => {
+                const estado = p.estado || 'disponible';
+                const esNoDisponible = estado === 'lavanderia';
+                
                 grid.innerHTML += `
-                    <div class="card-prenda">
+                    <div class="card-prenda ${esNoDisponible ? 'no-disponible' : ''}">
                         <img src="${p.urlImagen}" alt="Prenda">
-                        <span class="badge-estado badge-disponible">Disponible</span>
-                        <button style="padding: 5px; font-size: 11px;" onclick="cambiarEstadoPrenda('${p.idPrenda}', 'lavanderia')">Lavandería</button>
+                        ${esNoDisponible ? 
+                            '<span class="badge-estado badge-lavanderia">No Disponible</span><button style="padding: 4px; font-size: 10px; background-color: var(--accent);" onclick="cambiarEstadoPrenda(\'' + p.idPrenda + '\', \'disponible\')">Marcar Disponible</button>' : 
+                            '<span class="badge-estado badge-disponible">Disponible</span><button style="padding: 4px; font-size: 10px; background-color: var(--danger);" onclick="cambiarEstadoPrenda(\'' + p.idPrenda + '\', \'lavanderia\')">Lavandería</button>'
+                        }
                     </div>
                 `;
             });
         }
 
         async function cambiarEstadoPrenda(idPrenda, nuevoEstado) {
+            mostrarLoader("Actualizando estado...");
             try {
                 await enviarDatosSheets({ accion: "cambiarEstado", idPrenda, estado: nuevoEstado });
-                cargarPrendasArmario();
+                await cargarPrendasArmario();
+                occultarLoader();
             } catch (e) {
+                occultarLoader();
                 alert("No se pudo cambiar el estado.");
             }
         }
 
-        // --- NAVEGACIÓN DE PESTAÑAS ---
         function cambiarTab(tab) {
+            const btnArmario = document.querySelector('.nav-tabs button:nth-child(1)');
+            const btnOutfit = document.querySelector('.nav-tabs button:nth-child(2)');
+
             if (tab === 'armario') {
                 document.getElementById('tabArmario').classList.remove('hidden');
                 document.getElementById('tabOutfit').classList.add('hidden');
+                btnArmario.className = '';
+                btnOutfit.className = 'btn-secondary';
             } else {
                 document.getElementById('tabArmario').classList.add('hidden');
                 document.getElementById('tabOutfit').classList.remove('hidden');
+                btnArmario.className = 'btn-secondary';
+                btnOutfit.className = '';
             }
         }
 
@@ -587,12 +667,15 @@ async function guardarPrendaEnNube() {
             const ocasion = document.getElementById('selectOcasion').value;
             const contenedor = document.getElementById('resultadoOutfit');
             
-            if (listaMisPrendas.length === 0) {
-                contenedor.innerHTML = `<p style="color: var(--danger);">No tienes prendas disponibles en este momento.</p>`;
+            // Filtrar solo las prendas disponibles (excluyendo lavandería)
+            const disponibles = listaMisPrendas.filter(p => (!p.estado || p.estado === 'disponible'));
+
+            if (disponibles.length === 0) {
+                contenedor.innerHTML = `<p style="color: var(--danger);">No tienes prendas disponibles en este momento (todas están en lavandería).</p>`;
                 return;
             }
 
-            const prendaAleatoria = listaMisPrendas[Math.floor(Math.random() * listaMisPrendas.length)];
+            const prendaAleatoria = disponibles[Math.floor(Math.random() * disponibles.length)];
             
             contenedor.innerHTML = `
                 <p style="color: var(--accent); font-weight: bold;">¡Outfit ideal para: ${ocasion}!</p>
