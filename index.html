@@ -479,9 +479,7 @@
             document.getElementById('seccionPrincipal').classList.add('hidden');
             document.getElementById('seccionAuth').classList.remove('hidden');
         }
-
-        // --- GESTIÓN DE PRENDAS ---
-        async function guardarPrendaEnNube() {
+async function guardarPrendaEnNube() {
             const categoria = document.getElementById('categoriaNuevaPrenda').value;
             if (!imagenPrendaTemp) return;
 
@@ -489,24 +487,47 @@
             loader.classList.remove('hidden');
 
             try {
-                const res = await enviarDatosSheets({
-                    accion: "guardarPrenda",
-                    correo: usuarioActual,
-                    categoria,
-                    urlImagen: imagenPrendaTemp
-                });
-                loader.classList.add('hidden');
+                // Comprimir la imagen antes de enviarla para evitar bloqueos por tamaño
+                const img = new Image();
+                img.src = imagenPrendaTemp;
+                
+                img.onload = async function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 400; // Ancho máximo optimizado para la nube
+                    const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH;
+                    canvas.height = img.height * scaleSize;
 
-                if (res.status === "success") {
-                    alert("¡Prenda guardada en el armario!");
-                    document.getElementById('marcoPrendaPreview').classList.add('hidden');
-                    document.getElementById('btnGuardarPrendaCloud').classList.add('hidden');
-                    imagenPrendaTemp = "";
-                    cargarPrendasArmario();
-                }
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convertir a JPEG comprimido para reducir el peso drásticamente
+                    const imagenComprimida = canvas.toDataURL('image/jpeg', 0.7);
+
+                    const res = await enviarDatosSheets({
+                        accion: "guardarPrenda",
+                        correo: usuarioActual,
+                        categoria,
+                        urlImagen: imagenComprimida
+                    });
+                    
+                    loader.classList.remove('hidden'); // Asegurar estado del loader
+
+                    if (res.status === "success") {
+                        alert("¡Prenda guardada en el armario!");
+                        document.getElementById('marcoPrendaPreview').classList.add('hidden');
+                        document.getElementById('btnGuardarPrendaCloud').classList.add('hidden');
+                        imagenPrendaTemp = "";
+                        loader.classList.add('hidden');
+                        cargarPrendasArmario();
+                    } else {
+                        loader.classList.add('hidden');
+                        alert(res.message);
+                    }
+                };
             } catch (e) {
                 loader.classList.add('hidden');
-                alert(e.message);
+                alert("Error al comprimir o subir la prenda.");
             }
         }
 
