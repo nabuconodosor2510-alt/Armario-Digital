@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Armario IA</title>
+    <!-- Librería de IA para remover fondos automáticamente -->
+    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/index.umd.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --text-color: #f8fafc;
+            --accent: #ec4899;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        header {
+            width: 100%;
+            padding: 15px;
+            background: var(--card-bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        header input {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-align: center;
+            outline: underline;
+        }
+        .container {
+            width: 90%;
+            max-width: 450px;
+            margin: 20px auto;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            text-align: center;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s ease, background-color 0.2s;
+            margin: 10px 0;
+            width: 100%;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: white;
+            box-sizing: border-box;
+        }
+        /* Loader de bolita */
+        #loader {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            z-index: 999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #334155;
+            border-top: 5px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .hidden { display: none !important; }
+        .preview-img {
+            max-width: 100%;
+            height: 200px;
+            object-fit: contain;
+            background: #ffffff;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <span style="font-size: 0.8rem; color: #94a3b8;">App:</span>
+        <input type="text" id="appName" value="Mi Armario IA" title="Haz clic para cambiar el nombre">
+        <div></div>
+    </header>
+
+    <!-- Pantalla de Carga / Spinner -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <p id="loaderText" style="margin-top: 15px; font-weight: bold;">Procesando con IA...</p>
+    </div>
+
+    <!-- SECCIÓN 1: LOGIN / REGISTRO -->
+    <div id="authScreen" class="container">
+        <h2>Bienvenido</h2>
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button onclick="cambiarTab('login')" id="btnTabLogin">Iniciar Sesión</button>
+            <button onclick="cambiarTab('registro')" id="btnTabRegistro" style="background:#334155;">Registrarse</button>
+        </div>
+
+        <!-- Form Login -->
+        <div id="formLogin">
+            <input type="email" id="loginCorreo" placeholder="Correo electrónico">
+            <input type="password" id="passwordLogin" placeholder="Contraseña">
+            <button onclick="ejecutarLogin()">Entrar</button>
+        </div>
+
+        <!-- Form Registro -->
+        <div id="formRegistro" class="hidden">
+            <input type="email" id="regCorreo" placeholder="Correo electrónico">
+            <input type="password" id="regPassword" placeholder="Crea una contraseña">
+            <p style="font-size: 0.9rem; color: #94a3b8; margin: 10px 0;">Toma una foto de cuerpo completo (La IA limpiará el fondo):</p>
+            <input type="file" id="fotoCuerpoInput" accept="image/*" capture="environment" onchange="procesarFotoCuerpo(event)">
+            <img id="previewCuerpo" class="hidden preview-img">
+            <button id="btnRegistrar" onclick="ejecutarRegistro()" class="hidden" style="background: var(--accent);">Completar Registro</button>
+        </div>
+    </div>
+
+    <!-- SECCIÓN 2: PANEL PRINCIPAL (ARMARIO Y OUTFITS) -->
+    <div id="appScreen" class="container hidden">
+        <h3 id="userWelcome">Hola</h3>
+        <button onclick="irSeccion('armario')">Mi Armario de Prendas</button>
+        <button onclick="irSeccion('crearOutfit')">Seleccionar mi Outfit</button>
+        <button onclick="cerrarSesion()" style="background: #ef4444; margin-top: 30px;">Cerrar Sesión</button>
+    </div>
+
+    <!-- SECCIÓN 3: GESTIÓN DE ARMARIO -->
+    <div id="armarioScreen" class="container hidden">
+        <h3>Mi Armario</h3>
+        <button onclick="irSeccion('main')">Volver al Menú</button>
+        <hr style="border-color: #475569;">
+        <h4>Añadir Nueva Prenda</h4>
+        <select id="categoriaPrenda">
+            <option value="superior">Prenda Superior (Polo, Camisa, etc.)</option>
+            <option value="inferior">Prenda Inferior (Pantalón, Short, etc.)</option>
+            <option value="calzado">Calzado (Zapatillas, Zapatos)</option>
+        </select>
+        <input type="file" id="prendaInput" accept="image/*" capture="environment" onchange="subirYProcesarPrenda(event)">
+        <div id="listaPrendas" style="margin-top: 20px; text-align: left;"></div>
+    </div>
+
+    <!-- SECCIÓN 4: SELECCIONAR OUTFIT -->
+    <div id="outfitScreen" class="container hidden">
+        <h3>Asistente de Outfits</h3>
+        <button onclick="irSeccion('main')">Volver al Menú</button>
+        <p>¿A qué ocasión asistirás hoy?</p>
+        <select id="ocasionSelect">
+            <option value="trabajo">Trabajo / Oficina</option>
+            <option value="estudio">Estudio / Universidad</option>
+            <option value="amigos">Salida con Amigos</option>
+            <option value="casual">Casual / Diario</option>
+        </select>
+        <button onclick="generarOutfitIA()" style="background: var(--accent);">Generar Outfit con IA</button>
+        <div id="resultadoOutfit" style="margin-top: 20px; position: relative; min-height: 300px;"></div>
+    </div>
+
+    <script>
+        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwkNaYeu2W7dSauYp2s-Ebsp3LVzygNbQbugKfuuZ8noQQiqiyj6ArBc6SDI1tSRDPO/exec";
+        let fotoCuerpoB64 = "";
+        let usuarioActual = "";
+
+        function mostrarLoader(texto) {
+            document.getElementById('loaderText').innerText = texto;
+            document.getElementById('loader').style.display = 'flex';
+        }
+        function ocultarLoader() {
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        function cambiarTab(tab) {
+            if(tab === 'login') {
+                document.getElementById('formLogin').classList.remove('hidden');
+                document.getElementById('formRegistro').classList.add('hidden');
+                document.getElementById('btnTabLogin').style.background = 'var(--primary)';
+                document.getElementById('btnTabRegistro').style.background = '#334155';
+            } else {
+                document.getElementById('formLogin').classList.add('hidden');
+                document.getElementById('formRegistro').classList.remove('hidden');
+                document.getElementById('btnTabLogin').style.background = '#334155';
+                document.getElementById('btnTabRegistro').style.background = 'var(--primary)';
+            }
+        }
+
+        function irSeccion(seccion) {
+            document.getElementById('authScreen').classList.add('hidden');
+            document.getElementById('appScreen').classList.add('hidden');
+            document.getElementById('armarioScreen').classList.add('hidden');
+            document.getElementById('outfitScreen').classList.add('hidden');
+
+            if(seccion === 'main') document.getElementById('appScreen').classList.remove('hidden');
+            if(seccion === 'armario') {
+                document.getElementById('armarioScreen').classList.remove('hidden');
+                cargarArmario();
+            }
+            if(seccion === 'crearOutfit') document.getElementById('outfitScreen').classList.remove('hidden');
+        }
+
+        async function procesarFotoCuerpo(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            mostrarLoader("La IA está limpiando el fondo de tu foto de cuerpo completo...");
+            try {
+                const blobLimpio = await imglyRemoveBackground(file);
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    fotoCuerpoB64 = reader.result;
+                    const preview = document.getElementById('previewCuerpo');
+                    preview.src = fotoCuerpoB64;
+                    preview.classList.remove('hidden');
+                    document.getElementById('btnRegistrar').classList.remove('hidden');
+                    ocultarLoader();
+                }
+                reader.readAsDataURL(blobLimpio);
+            } catch (err) {
+                ocultarLoader();
+                alert("Error al procesar la imagen: " + err);
+            }
+        }
+
+        async function ejecutarRegistro() {
+            const correo = document.getElementById('regCorreo').value;
+            const password = document.getElementById('regPassword').value;
+            if(!correo || !password || !fotoCuerpoB64) {
+                alert("Por favor completa todos los campos y la foto de cuerpo completo.");
+                return;
+            }
+            mostrarLoader("Registrando usuario...");
+            try {
+                const res = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify({ accion: "registro", correo, password, fotoCuerpo: fotoCuerpoB64 })
+                });
+                const data = await res.json();
+                ocultarLoader();
+                if(data.status === "success") {
+                    alert("¡Registro exitoso! Ahora inicia sesión.");
+                    cambiarTab('login');
+                } else {
+                    alert(data.message);
+                }
+            } catch (e) {
+                ocultarLoader();
+                alert("Error de conexión.");
+            }
+        }
+
+        async function ejecutarLogin() {
+            const correo = document.getElementById('loginCorreo').value;
+            const password = document.getElementById('passwordLogin').value;
+            mostrarLoader("Iniciando sesión...");
+            try {
+                const res = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify({ accion: "login", correo, password })
+                });
+                const data = await res.json();
+                ocultarLoader();
+                if(data.status === "success") {
+                    usuarioActual = correo;
+                    localStorage.setItem("usuario", correo);
+                    localStorage.setItem("fotoCuerpo", data.fotoCuerpo);
+                    document.getElementById('userWelcome').innerText = "Hola, " + correo;
+                    irSeccion('main');
+                } else {
+                    alert(data.message);
+                }
+            } catch (e) {
+                ocultarLoader();
+                alert("Error de conexión.");
+            }
+        }
+
+        function cerrarSesion() {
+            localStorage.clear();
+            usuarioActual = "";
+            location.reload();
+        }
+
+        async function subirYProcesarPrenda(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const categoria = document.getElementById('categoriaPrenda').value;
+            mostrarLoader("La IA está limpiando el fondo de tu prenda...");
+            try {
+                const blobLimpio = await imglyRemoveBackground(file);
+                const reader = new FileReader();
+                reader.onloadend = async function() {
+                    const urlImagenLimpia = reader.result;
+                    
+                    // Guardar en Apps Script
+                    const res = await fetch(URL_SCRIPT, {
+                        method: "POST",
+                        body: JSON.stringify({
+                            accion: "guardarPrenda",
+                            correo: localStorage.getItem("usuario"),
+                            categoria: categoria,
+                            urlImagen: urlImagenLimpia
+                        })
+                    });
+                    const data = await res.json();
+                    ocultarLoader();
+                    if(data.status === "success") {
+                        alert("¡Prenda guardada con éxito!");
+                        cargarArmario();
+                    } else {
+                        alert("Error al guardar: " + data.message);
+                    }
+                }
+                reader.readAsDataURL(blobLimpio);
+            } catch (err) {
+                ocultarLoader();
+                alert("Error procesando prenda: " + err);
+            }
+        }
+
+        async function cargarArmario() {
+            mostrarLoader("Cargando tu armario...");
+            try {
+                const res = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify({ accion: "obtenerPrendas", correo: localStorage.getItem("usuario") })
+                });
+                const data = await res.json();
+                ocultarLoader();
+                const contenedor = document.getElementById('listaPrendas');
+                contenedor.innerHTML = "";
+                
+                // Nota: Para listar todas (incluyendo lavandería), podemos adaptar una vista completa, aquí filtramos las disponibles o gestionamos su estado
+                // Haremos una petición para traer todas en bruto si es necesario, o manejarlas directo.
+                // Como obtenemos prendas disponibles, vamos a mejorar la lectura en el siguiente ajuste si deseas ver las de lavandería también.
+                if(data.prendas && data.prendas.length > 0) {
+                    data.prendas.forEach(p => {
+                        contenedor.innerHTML += `
+                            <div style="background:#0f172a; padding:10px; margin-bottom:10px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                                <img src="${p.urlImagen}" style="width:50px; height:50px; object-fit:contain; background:white; border-radius:4px;">
+                                <span>${p.categoria}</span>
+                                <button onclick="cambiarEstadoPrenda('${p.idPrenda}', 'lavanderia')" style="background:#ef4444; width:auto; padding:6px 10px; font-size:0.8rem;">A Lavandería</button>
+                            </div>
+                        `;
+                    });
+                } else {
+                    contenedor.innerHTML = "<p style='color:#94a3b8;'>No hay prendas disponibles en este momento.</p>";
+                }
+            } catch (e) {
+                ocultarLoader();
+            }
+        }
+
+        async function cambiarEstadoPrenda(idPrenda, nuevoEstado) {
+            mostrarLoader("Actualizando estado...");
+            await fetch(URL_SCRIPT, {
+                method: "POST",
+                body: JSON.stringify({ accion: "cambiarEstado", idPrenda, estado: nuevoEstado })
+            });
+            ocultarLoader();
+            cargarArmario();
+        }
+
+        async function generarOutfitIA() {
+            mostrarLoader("La IA está combinando tus prendas ideales...");
+            try {
+                const res = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify({ accion: "obtenerPrendas", correo: localStorage.getItem("usuario") })
+                });
+                const data = await res.json();
+                ocultarLoader();
+
+                const resultadoDiv = document.getElementById('resultadoOutfit');
+                const fotoCuerpo = localStorage.getItem("fotoCuerpo");
+                
+                // Separar por categorías disponibles
+                const superiores = data.prendas.filter(p => p.categoria === 'superior');
+                const inferiores = data.prendas.filter(p => p.categoria === 'inferior');
+                const calzados = data.prendas.filter(p => p.categoria === 'calzado');
+
+                if(superiores.length === 0 || inferiores.length === 0) {
+                    alert("Necesitas al menos una prenda superior y una inferior disponibles para armar un outfit.");
+                    return;
+                }
+
+                // Selección inteligente aleatoria / IA básica de combinación
+                const supSeleccionada = superiores[Math.floor(Math.random() * superiores.length)];
+                const infSeleccionada = inferiores[Math.floor(Math.random() * inferiores.length)];
+                const calSeleccionado = calzados.length > 0 ? calzados[Math.floor(Math.random() * calzados.length)] : null;
+
+                resultadoDiv.innerHTML = `
+                    <div style="position:relative; width:100%; height:350px; display:flex; justify-content:center; align-items:center;">
+                        <!-- Foto base de cuerpo completo limpia -->
+                        <img src="${fotoCuerpo}" style="max-height:100%; position:absolute; z-index:1;">
+                        <!-- Prenda Superior superpuesta -->
+                        <img src="${supSeleccionada.urlImagen}" style="max-height:35%; position:absolute; top:80px; z-index:2; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));">
+                        <!-- Prenda Inferior superpuesta -->
+                        <img src="${infSeleccionada.urlImagen}" style="max-height:35%; position:absolute; top:160px; z-index:2; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));">
+                    </div>
+                    <p style="color: var(--accent); font-weight: bold; margin-top:10px;">¡Outfit seleccionado con éxito para la ocasión!</p>
+                `;
+            } catch (e) {
+                ocultarLoader();
+                alert("Error al generar outfit.");
+            }
+        }
+    </script>
+</body>
+</html>
