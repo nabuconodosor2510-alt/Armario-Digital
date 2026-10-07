@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Armario IA - Smart Frame</title>
+    <title>Mi Armario IA - Fondo Transparente Móvil</title>
+    
+    <!-- MediaPipe Selfie Segmentation: IA ligera de Google optimizada para celulares -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+
     <style>
         :root {
             --bg-color: #0f172a;
@@ -73,7 +78,6 @@
         }
         button:hover { background-color: var(--primary-hover); }
 
-        /* Contenedor inteligente para la foto de perfil */
         .profile-frame {
             width: 150px;
             height: 150px;
@@ -93,7 +97,6 @@
             object-fit: cover;
         }
 
-        /* Contenedor inteligente para las prendas (estilo catálogo) */
         .garment-frame {
             width: 100%;
             height: 220px;
@@ -109,7 +112,7 @@
         #previewPrenda {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Mantiene la proporción completa de la prenda */
+            object-fit: contain;
             padding: 10px;
             box-sizing: border-box;
         }
@@ -124,6 +127,11 @@
             margin-bottom: 15px;
             font-size: 15px;
         }
+        .loader {
+            color: var(--accent);
+            font-weight: bold;
+            margin: 10px 0;
+        }
     </style>
 </head>
 <body>
@@ -131,14 +139,16 @@
     <!-- Sección 1: Foto de Perfil -->
     <div class="container" id="seccionPerfil">
         <h2>Mi Armario IA</h2>
-        <p>Configura tu foto de perfil</p>
+        <p>Configura tu foto de perfil (IA integrada)</p>
+
+        <div id="loaderPerfil" class="loader hidden">Procesando fondo con IA...</div>
 
         <div class="profile-frame hidden" id="marcoPerfil">
             <img id="previewCuerpo" alt="Vista previa perfil">
         </div>
 
         <label class="custom-file-upload">
-            <input type="file" id="inputFotoCuerpo" accept="image/*" onchange="procesarFotoPerfil(event)">
+            <input type="file" id="inputFotoCuerpo" accept="image/*" onchange="procesarFotoConIA(event, 'perfil')">
             📷 Seleccionar foto de perfil
         </label>
 
@@ -148,7 +158,7 @@
     <!-- Sección 2: Gestión de Prendas -->
     <div class="container hidden" id="seccionPrendas">
         <h2>Gestión de Prendas</h2>
-        <p>Sube y organiza la ropa de tu armario</p>
+        <p>Sube tus prendas con fondo limpio</p>
 
         <select id="categoriaPrenda">
             <option value="superior">Parte Superior (Polos, Camisas)</option>
@@ -157,67 +167,132 @@
             <option value="accesorios">Accesorios</option>
         </select>
 
+        <div id="loaderPrenda" class="loader hidden">Limpiando fondo de la prenda...</div>
+
         <div class="garment-frame hidden" id="marcoPrenda">
             <img id="previewPrenda" alt="Vista previa prenda">
         </div>
 
         <label class="custom-file-upload">
-            <input type="file" id="inputPrenda" accept="image/*" onchange="procesarPrenda(event)">
+            <input type="file" id="inputPrenda" accept="image/*" onchange="procesarFotoConIA(event, 'prenda')">
             👕 Seleccionar foto de prenda
         </label>
 
-        <button id="btnGuardarPrenda" class="hidden" onclick="guardarPrendaArmario()">Añadir al Armario</button>
+        <button id="btnGuardarPrenda" class="hidden" onclick="guardarPrendaArmario()">Añadir al Armario (Google Sheets)</button>
     </div>
 
     <script>
+        // URL de tu Web App de Google Apps Script
+        const URL_SCRIPT = "TU_URL_DE_APPS_SCRIPT_AQUI"; 
         let fotoPerfilB64 = "";
         let fotoPrendaB64 = "";
 
-        // Procesar foto de perfil con marco circular inteligente
-        function procesarFotoPerfil(event) {
+        // Inicializar el modelo MediaPipe Selfie Segmentation
+        const selfieSegmentation = new SelfieSegmentation({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+        });
+
+        selfieSegmentation.setOptions({
+            modelSelection: 1, // 1 para modelo general optimizado
+        });
+
+        async function procesarFotoConIA(event, tipo) {
             const file = event.target.files[0];
             if (!file) return;
 
+            const loaderId = tipo === 'perfil' ? 'loaderPerfil' : 'loaderPrenda';
+            document.getElementById(loaderId).classList.remove('hidden');
+
+            const img = new Image();
             const reader = new FileReader();
+
             reader.onload = function(e) {
-                fotoPerfilB64 = e.target.result;
-                document.getElementById('previewCuerpo').src = fotoPerfilB64;
-                document.getElementById('marcoPerfil').classList.remove('hidden');
-                document.getElementById('btnContinuar').classList.remove('hidden');
+                img.src = e.target.result;
             }
+
+            img.onload = async function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                // Procesar con MediaPipe para aislar la figura
+                selfieSegmentation.onResults((results) => {
+                    ctx.save();
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Dibujar la máscara de recorte (eliminar fondo)
+                    ctx.drawImage(results.segmentationMask, 0, 0, canvas.width, canvas.height);
+                    ctx.globalCompositeOperation = 'source-in';
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    ctx.restore();
+
+                    const resultadoB64 = canvas.toDataURL('image/png');
+
+                    if (tipo === 'perfil') {
+                        fotoPerfilB64 = resultadoB64;
+                        document.getElementById('previewCuerpo').src = fotoPerfilB64;
+                        document.getElementById('marcoPerfil').classList.remove('hidden');
+                        document.getElementById('btnContinuar').classList.remove('hidden');
+                        document.getElementById('loaderPerfil').classList.add('hidden');
+                    } else {
+                        fotoPrendaB64 = resultadoB64;
+                        document.getElementById('previewPrenda').src = fotoPrendaB64;
+                        document.getElementById('marcoPrenda').classList.remove('hidden');
+                        document.getElementById('btnGuardarPrenda').classList.remove('hidden');
+                        document.getElementById('loaderPrenda').classList.add('hidden');
+                    }
+                });
+
+                await selfieSegmentation.send({image: img});
+            }
+
             reader.readAsDataURL(file);
         }
 
-        // Avanzar a la sección de prendas
         function irASeccionPrendas() {
             document.getElementById('seccionPerfil').classList.add('hidden');
             document.getElementById('seccionPrendas').classList.remove('hidden');
         }
 
-        // Procesar prenda con marco adaptativo de catálogo
-        function procesarPrenda(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                fotoPrendaB64 = e.target.result;
-                document.getElementById('previewPrenda').src = fotoPrendaB64;
-                document.getElementById('marcoPrenda').classList.remove('hidden');
-                document.getElementById('btnGuardarPrenda').classList.remove('hidden');
-            }
-            reader.readAsDataURL(file);
-        }
-
-        // Acción final al registrar prenda
-        function guardarPrendaArmario() {
+        async function guardarPrendaArmario() {
             const categoria = document.getElementById('categoriaPrenda').value;
-            alert("¡Prenda guardada con éxito en la categoría: " + categoria + "!");
-            // Aquí puedes conectar posteriormente tu Apps Script o base de datos local
+            if (!fotoPrendaB64) {
+                alert("Primero selecciona y procesa una prenda.");
+                return;
+            }
+
+            if (URL_SCRIPT === "TU_URL_DE_APPS_SCRIPT_AQUI") {
+                alert("¡Prenda procesada con éxito! (Configura tu URL de Google Apps Script para guardarla en la hoja).");
+                return;
+            }
+
+            alert("Guardando prenda en Google Sheets...");
+
+            try {
+                const respuesta = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        accion: "guardarPrenda",
+                        correo: "usuario@armario.com",
+                        categoria: categoria,
+                        urlImagen: fotoPrendaB64
+                    })
+                });
+
+                const resultado = await respuesta.json();
+                if (resultado.status === "success") {
+                    alert("¡Prenda guardada en Google Sheets con fondo transparente!");
+                } else {
+                    alert("Hubo un error al registrar en la hoja.");
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Error de conexión al enviar a Google Sheets.");
+            }
         }
-    </script>
-</body>
-</html>
     </script>
 </body>
 </html>
