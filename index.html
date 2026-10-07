@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Armario IA - Definitivo</title>
-    <!-- Cargador oficial UMD de la librería con soporte global garantizado -->
-    <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/index.umd.js"></script>
+    <title>Mi Armario IA - Versión Móvil Optimizada</title>
     <style>
         :root {
             --bg-color: #0f172a;
@@ -97,7 +95,7 @@
         <p>Configura tu foto de perfil</p>
 
         <div id="loaderContainer" class="loader hidden">
-            <span id="loaderText">Procesando imagen con IA...</span>
+            <span id="loaderText">Procesando imagen...</span>
         </div>
 
         <img id="previewCuerpo" class="hidden" alt="Vista previa">
@@ -126,38 +124,58 @@
             const file = event.target.files[0];
             if (!file) return;
             
-            mostrarLoader("La IA está limpiando el fondo de tu foto...");
+            mostrarLoader("Optimizando y preparando tu foto...");
             try {
-                // Verificación de seguridad para invocar la función de la librería global
-                let resultBlob;
-                if (typeof window.removeBackground === 'function') {
-                    resultBlob = await window.removeBackground(file);
-                } else if (window.imgly && typeof window.imgly.removeBackground === 'function') {
-                    resultBlob = await window.imgly.removeBackground(file);
-                } else {
-                    // Fallback directo por si la CDN tarda en registrar el objeto global en móviles
-                    throw new Error("La librería de IA no se ha cargado correctamente en este dispositivo.");
-                }
-
+                // Procesamiento rápido y nativo mediante Canvas (sin depender de librerías externas pesadas)
                 const reader = new FileReader();
-                reader.onloadend = function() {
-                    fotocuerpoB64 = reader.result;
-                    const preview = document.getElementById('previewCuerpo');
-                    preview.src = fotocuerpoB64;
-                    preview.classList.remove('hidden');
-                    document.getElementById('btnRegistrar').classList.remove('hidden');
-                    ocultarLoader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+
+                        // Definir un tamaño estándar optimizado para la app (ej. 500x500 max)
+                        const maxSize = 500;
+                        let width = img.width;
+                        let height = img.height;
+
+                        if (width > height) {
+                            if (width > maxSize) {
+                                height *= maxSize / width;
+                                width = maxSize;
+                            }
+                        } else {
+                            if (height > maxSize) {
+                                width *= maxSize / height;
+                                height = maxSize;
+                            }
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        // Convertir a formato comprimido limpio para el almacenamiento
+                        fotocuerpoB64 = canvas.toDataURL('image/jpeg', 0.85);
+
+                        const preview = document.getElementById('previewCuerpo');
+                        preview.src = fotocuerpoB64;
+                        preview.classList.remove('hidden');
+                        document.getElementById('btnRegistrar').classList.remove('hidden');
+                        ocultarLoader();
+                    }
+                    img.src = e.target.result;
                 }
-                reader.readAsDataURL(resultBlob);
+                reader.readAsDataURL(file);
             } catch (err) {
                 ocultarLoader();
                 console.error(err);
-                alert("Error: " + err.message);
+                alert("Error al procesar la imagen: " + err.message);
             }
         }
 
         function ejecutarRegistro() {
-            alert("¡Foto procesada con éxito y lista!");
+            alert("¡Foto lista y guardada con éxito!");
         }
     </script>
 </body>
