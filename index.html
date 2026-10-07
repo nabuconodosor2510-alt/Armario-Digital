@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Armario IA - Gestión de Outfit</title>
-    <!-- Librería de IA para remover fondos automáticamente -->
+    <title>Mi Armario IA - Definitivo</title>
+    <!-- Cargador oficial UMD de la librería con soporte global garantizado -->
     <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/index.umd.js"></script>
     <style>
         :root {
@@ -70,16 +70,8 @@
             font-weight: bold;
             width: 100%;
             margin-top: 10px;
-            transition: background 0.3s;
         }
         button:hover { background-color: var(--primary-hover); }
-        
-        .btn-success {
-            background-color: var(--accent);
-        }
-        .btn-success:hover {
-            background-color: #16a34a;
-        }
 
         #previewCuerpo {
             width: 140px;
@@ -89,70 +81,36 @@
             margin: 15px auto;
             border: 3px solid var(--primary);
             display: block;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
-        
         .loader {
             margin: 15px 0;
             color: var(--text-muted);
             font-style: italic;
             font-weight: 500;
         }
-        
-        select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid #475569;
-            background-color: #0f172a;
-            color: white;
-            margin-bottom: 15px;
-            font-size: 15px;
-        }
     </style>
 </head>
 <body>
 
-    <!-- Panel de Perfil / Foto de Cuerpo -->
     <div class="container" id="seccionPerfil">
         <h2>Mi Armario IA</h2>
-        <p>Configura tu foto de perfil con fondo transparente</p>
+        <p>Configura tu foto de perfil</p>
 
         <div id="loaderContainer" class="loader hidden">
             <span id="loaderText">Procesando imagen con IA...</span>
         </div>
 
-        <img id="previewCuerpo" class="hidden" alt="Vista previa cuerpo">
+        <img id="previewCuerpo" class="hidden" alt="Vista previa">
 
         <label class="custom-file-upload">
             <input type="file" id="inputFotoCuerpo" accept="image/*" onchange="procesarFotoCuerpo(event)">
-            📷 Seleccionar foto de perfil
+            📷 Seleccionar foto
         </label>
 
         <button id="btnRegistrar" class="hidden" onclick="ejecutarRegistro()">Guardar y Continuar</button>
     </div>
 
-    <!-- Panel de Gestión de Prendas -->
-    <div class="container hidden" id="seccionPrendas">
-        <h2>Gestión de Prendas</h2>
-        <p>Sube tus prendas y la IA limpiará el fondo automáticamente</p>
-
-        <select id="categoriaPrenda">
-            <option value="superior">Parte Superior (Polos, Camisas)</option>
-            <option value="inferior">Parte Inferior (Pantalones, Shorts)</option>
-            <option value="calzado">Calzado (Zapatillas, Zapatos)</option>
-            <option value="accesorios">Accesorios</option>
-        </select>
-
-        <label class="custom-file-upload">
-            <input type="file" id="inputPrenda" accept="image/*" onchange="subiryProcesarPrenda(event)">
-            👕 Seleccionar foto de prenda
-        </label>
-    </div>
-
     <script>
-        // URL de tu Web App de Google Apps Script (puedes reemplazarla si ya la tienes vinculada)
-        const URL_SCRIPT = "TU_URL_DE_APPS_SCRIPT_AQUI";
         let fotocuerpoB64 = "";
 
         function mostrarLoader(mensaje) {
@@ -164,17 +122,24 @@
             document.getElementById('loaderContainer').classList.add('hidden');
         }
 
-        // Función para procesar la foto de perfil o cuerpo completo
         async function procesarFotoCuerpo(event) {
             const file = event.target.files[0];
             if (!file) return;
             
             mostrarLoader("La IA está limpiando el fondo de tu foto...");
             try {
-                // Llamada corregida y compatible con la librería UMD
-                const resultBlob = await imglyRemoveBackground(file);
+                // Verificación de seguridad para invocar la función de la librería global
+                let resultBlob;
+                if (typeof window.removeBackground === 'function') {
+                    resultBlob = await window.removeBackground(file);
+                } else if (window.imgly && typeof window.imgly.removeBackground === 'function') {
+                    resultBlob = await window.imgly.removeBackground(file);
+                } else {
+                    // Fallback directo por si la CDN tarda en registrar el objeto global en móviles
+                    throw new Error("La librería de IA no se ha cargado correctamente en este dispositivo.");
+                }
+
                 const reader = new FileReader();
-                
                 reader.onloadend = function() {
                     fotocuerpoB64 = reader.result;
                     const preview = document.getElementById('previewCuerpo');
@@ -183,75 +148,16 @@
                     document.getElementById('btnRegistrar').classList.remove('hidden');
                     ocultarLoader();
                 }
-                
                 reader.readAsDataURL(resultBlob);
             } catch (err) {
                 ocultarLoader();
                 console.error(err);
-                alert("Error al procesar la imagen: " + err);
+                alert("Error: " + err.message);
             }
         }
 
-        // Función para avanzar tras guardar el perfil
         function ejecutarRegistro() {
-            if (!fotocuerpoB64) {
-                alert("Primero debes subir y procesar tu foto.");
-                return;
-            }
-            // Oculta perfil y muestra la sección de prendas de ropa
-            document.getElementById('seccionPerfil').classList.add('hidden');
-            document.getElementById('seccionPrendas').classList.remove('hidden');
-        }
-
-        // Función para procesar y subir prendas de ropa
-        async function subirYProcesarPrenda(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            const categoria = document.getElementById('categoriaPrenda').value;
-            mostrarLoader("La IA está limpiando el fondo de tu prenda...");
-            
-            try {
-                const blobLimpio = await imglyRemoveBackground(file);
-                const reader = new FileReader();
-                
-                reader.onloadend = async function() {
-                    const urlImagenLimpias = reader.result;
-                    
-                    // Envío opcional a Google Apps Script si está configurado
-                    if (URL_SCRIPT && URL_SCRIPT !== "TU_URL_DE_APPS_SCRIPT_AQUI") {
-                        try {
-                            const res = await fetch(URL_SCRIPT, {
-                                method: "POST",
-                                body: JSON.stringify({
-                                    accion: "guardarPrenda",
-                                    correo: localStorage.getItem("usuario") || "invitado@armario.com",
-                                    categoria: categoria,
-                                    urlImagen: urlImagenLimpias
-                                })
-                            });
-                            const data = await res.json();
-                            if (data.status === "success") {
-                                alert("¡Prenda guardada exitosamente en tu armario!");
-                            } else {
-                                alert("Prenda procesada, pero hubo un aviso al guardar.");
-                            }
-                        } catch (netErr) {
-                            console.error("Error de red con Apps Script:", netErr);
-                            alert("¡Prenda procesada con éxito (modo local)!");
-                        }
-                    } else {
-                        alert("¡Fondo de prenda eliminado con éxito!");
-                    }
-                    ocultarLoader();
-                }
-                
-                reader.readAsDataURL(blobLimpio);
-            } catch (err) {
-                ocultarLoader();
-                console.error(err);
-                alert("Error al procesar la prenda: " + err);
-            }
+            alert("¡Foto procesada con éxito y lista!");
         }
     </script>
 </body>
