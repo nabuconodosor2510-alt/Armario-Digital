@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Armario IA - Fondo Transparente Móvil</title>
+    <title id="pageTitle">Mi Armario IA</title>
     
-    <!-- MediaPipe Selfie Segmentation: IA ligera de Google optimizada para celulares -->
+    <!-- MediaPipe Selfie Segmentation para quitar fondos fluidamente en celulares -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 
     <style>
         :root {
@@ -18,6 +17,7 @@
             --text-color: #f8fafc;
             --text-muted: #94a3b8;
             --accent: #22c55e;
+            --danger: #ef4444;
             --border-color: #334155;
         }
         body {
@@ -25,43 +25,66 @@
             background-color: var(--bg-color);
             color: var(--text-color);
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
         }
+        .header-editable {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 15px;
+            text-align: center;
+            border: none;
+            background: transparent;
+            outline: none;
+            cursor: pointer;
+            width: 100%;
+        }
         .container {
             background-color: var(--card-bg);
-            padding: 25px;
+            padding: 20px;
             border-radius: 16px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
             width: 100%;
-            max-width: 450px;
+            max-width: 420px;
             box-sizing: border-box;
             text-align: center;
             margin-bottom: 20px;
         }
-        h2 { margin-top: 0; color: #fff; }
-        p { color: var(--text-muted); font-size: 14px; }
+        h2 { margin-top: 0; color: #fff; font-size: 1.4rem; }
+        p { color: var(--text-muted); font-size: 13px; }
         .hidden { display: none !important; }
         input[type="file"] { display: none; }
         
+        input[type="email"], input[type="password"], select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background-color: var(--bg-color);
+            color: white;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+
         .custom-file-upload {
             border: 2px dashed var(--primary);
             display: block;
-            padding: 15px;
+            padding: 12px;
             cursor: pointer;
             border-radius: 10px;
             background-color: rgba(99, 102, 241, 0.08);
             color: var(--text-color);
             font-weight: 600;
-            margin: 15px 0;
+            margin: 12px 0;
             transition: background 0.3s;
+            font-size: 14px;
         }
-        .custom-file-upload:hover {
-            background-color: rgba(99, 102, 241, 0.2);
-        }
+        .custom-file-upload:hover { background-color: rgba(99, 102, 241, 0.2); }
         
         button {
             background-color: var(--primary);
@@ -70,145 +93,211 @@
             padding: 12px 20px;
             border-radius: 10px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             width: 100%;
-            margin-top: 10px;
-            transition: background 0.3s;
+            margin-top: 8px;
+            transition: transform 0.1s ease, background 0.3s;
         }
+        button:active { transform: scale(0.96); }
         button:hover { background-color: var(--primary-hover); }
 
-        .profile-frame {
-            width: 150px;
-            height: 150px;
-            border-radius: 50%;
-            margin: 15px auto;
-            border: 3px solid var(--primary);
-            overflow: hidden;
-            background: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
         }
-        #previewCuerpo {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+        .btn-secondary:hover { background-color: rgba(255,255,255,0.05); color: white; }
 
-        .garment-frame {
-            width: 100%;
-            height: 220px;
-            border-radius: 12px;
-            margin: 15px 0;
+        .preview-box {
+            width: 140px;
+            height: 180px;
+            margin: 12px auto;
             border: 2px solid var(--border-color);
+            border-radius: 12px;
             overflow: hidden;
-            background: #ffffff;
+            background: #fff;
             display: flex;
             align-items: center;
             justify-content: center;
         }
-        #previewPrenda {
+        .preview-box img {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            padding: 10px;
-            box-sizing: border-box;
         }
 
-        select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-            background-color: var(--bg-color);
-            color: white;
-            margin-bottom: 15px;
-            font-size: 15px;
-        }
         .loader {
             color: var(--accent);
             font-weight: bold;
             margin: 10px 0;
+            font-size: 13px;
+        }
+
+        /* Cuadrícula de armario */
+        .grid-prendas {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+        .card-prenda {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .card-prenda img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 5px;
+        }
+        .badge-estado {
+            font-size: 10px;
+            padding: 3px 6px;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .badge-disponible { background: rgba(34, 197, 94, 0.2); color: var(--accent); }
+        .badge-lavanderia { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
         }
     </style>
 </head>
 <body>
 
-    <!-- Sección 1: Foto de Perfil -->
-    <div class="container" id="seccionPerfil">
-        <h2>Mi Armario IA</h2>
-        <p>Configura tu foto de perfil (IA integrada)</p>
+    <!-- Nombre de la app editable en la parte superior -->
+    <input type="text" id="inputTituloApp" class="header-editable" value="✨ Mi Armario IA ✨" oninput="cambiarTituloApp()">
 
-        <div id="loaderPerfil" class="loader hidden">Procesando fondo con IA...</div>
+    <!-- SECCIÓN 1: LOGIN / REGISTRO -->
+    <div class="container" id="seccionAuth">
+        <h2>Bienvenido</h2>
+        <p>Inicia sesión o regístrate para acceder a tu armario</p>
+        
+        <input type="email" id="authCorreo" placeholder="Correo electrónico">
+        <input type="password" id="authPassword" placeholder="Contraseña">
 
-        <div class="profile-frame hidden" id="marcoPerfil">
-            <img id="previewCuerpo" alt="Vista previa perfil">
-        </div>
-
-        <label class="custom-file-upload">
-            <input type="file" id="inputFotoCuerpo" accept="image/*" onchange="procesarFotoConIA(event, 'perfil')">
-            📷 Seleccionar foto de perfil
-        </label>
-
-        <button id="btnContinuar" class="hidden" onclick="irASeccionPrendas()">Guardar y Continuar</button>
+        <button onclick="ejecutarAuth('login')">Iniciar Sesión</button>
+        <button class="btn-secondary" onclick="mostrarRegistroCuerpo()">Registrarse con Foto Base</button>
     </div>
 
-    <!-- Sección 2: Gestión de Prendas -->
-    <div class="container hidden" id="seccionPrendas">
-        <h2>Gestión de Prendas</h2>
-        <p>Sube tus prendas con fondo limpio</p>
+    <!-- SECCIÓN 2: REGISTRO DE FOTO CORPORAL (MANIQUÍ) -->
+    <div class="container hidden" id="seccionRegistroCuerpo">
+        <h2>Foto Base (Maniquí)</h2>
+        <p>Tómate una foto de cuerpo completo. La IA limpiará el fondo.</p>
 
-        <select id="categoriaPrenda">
-            <option value="superior">Parte Superior (Polos, Camisas)</option>
-            <option value="inferior">Parte Inferior (Pantalones, Shorts)</option>
-            <option value="calzado">Calzado (Zapatillas, Zapatos)</option>
-            <option value="accesorios">Accesorios</option>
-        </select>
+        <div id="loaderRegistro" class="loader hidden">Procesando cuerpo con IA...</div>
 
-        <div id="loaderPrenda" class="loader hidden">Limpiando fondo de la prenda...</div>
-
-        <div class="garment-frame hidden" id="marcoPrenda">
-            <img id="previewPrenda" alt="Vista previa prenda">
+        <div class="preview-box hidden" id="marcoRegistro">
+            <img id="imgRegistroPreview" alt="Cuerpo base">
         </div>
 
         <label class="custom-file-upload">
-            <input type="file" id="inputPrenda" accept="image/*" onchange="procesarFotoConIA(event, 'prenda')">
-            👕 Seleccionar foto de prenda
+            <input type="file" accept="image/*" onchange="procesarFotoConIA(event, 'registroCuerpo')">
+            📷 Capturar / Subir Foto Base
         </label>
 
-        <button id="btnGuardarPrenda" class="hidden" onclick="guardarPrendaArmario()">Añadir al Armario (Google Sheets)</button>
+        <button id="btnFinalizarRegistro" class="hidden" onclick="completarRegistroUsuario()">Crear Cuenta</button>
+        <button class="btn-secondary" onclick="volverLogin()">Volver</button>
+    </div>
+
+    <!-- SECCIÓN 3: PANEL PRINCIPAL (ARMARIO Y OUTFITS) -->
+    <div class="container hidden" id="seccionPrincipal">
+        <h2 id="saludoUsuario">Mi Armario</h2>
+        
+        <div class="nav-tabs">
+            <button onclick="cambiarTab('armario')">👕 Ropa</button>
+            <button onclick="cambiarTab('outfit')">✨ Crear Outfit</button>
+        </div>
+
+        <!-- Sub-pestaña Ropa -->
+        <div id="tabArmario">
+            <select id="categoriaNuevaPrenda">
+                <option value="superior">Parte Superior (Polos, Camisas)</option>
+                <option value="inferior">Parte Inferior (Pantalones, Shorts)</option>
+                <option value="calzado">Calzado</option>
+                <option value="accesorios">Accesorios</option>
+            </select>
+
+            <div id="loaderPrenda" class="loader hidden">Quitando fondo a la prenda...</div>
+            <div class="preview-box hidden" id="marcoPrendaPreview">
+                <img id="imgPrendaPreview" alt="Prenda recortada">
+            </div>
+
+            <label class="custom-file-upload">
+                <input type="file" accept="image/*" onchange="procesarFotoConIA(event, 'nuevaPrenda')">
+                ➕ Añadir Nueva Prenda
+            </label>
+            <button id="btnGuardarPrendaCloud" class="hidden" onclick="guardarPrendaEnNube()">Guardar en el Armario</button>
+
+            <div class="grid-prendas" id="listaPrendasGrid">
+                <!-- Se cargan dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Sub-pestaña Outfit -->
+        <div id="tabOutfit" class="hidden">
+            <p>Selecciona la ocasión para hoy:</p>
+            <select id="selectOcasion">
+                <option value="casual">Salida Casual / Amigos</option>
+                <option value="trabajo">Trabajo / Oficina</option>
+                <option value="estudio">Estudio / Universidad</option>
+                <option value="elegante">Elegante / Formal</option>
+            </select>
+            <button onclick="generarOutfitIA()">Generar Outfit Inteligente</button>
+            
+            <div id="resultadoOutfit" style="margin-top: 15px;">
+                <!-- Aquí se montará el resultado -->
+            </div>
+        </div>
+
+        <button class="btn-secondary" style="margin-top: 20px;" onclick="cerrarSesion()">Cerrar Sesión</button>
     </div>
 
     <script>
-        // URL de tu Web App de Google Apps Script
-        const URL_SCRIPT = "TU_URL_DE_APPS_SCRIPT_AQUI"; 
-        let fotoPerfilB64 = "";
-        let fotoPrendaB64 = "";
+        // CONFIGURACIÓN: Pega aquí tu URL de Google Apps Script (.gs)
+        const URL_SCRIPT = "TU_URL_DE_APPS_SCRIPT_AQUI";
 
-        // Inicializar el modelo MediaPipe Selfie Segmentation
+        let usuarioActual = null;
+        let fotoCuerpoTemp = "";
+        let imagenPrendaTemp = "";
+        let listaMisPrendas = [];
+
+        // Inicializar IA MediaPipe Selfie Segmentation
         const selfieSegmentation = new SelfieSegmentation({
             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
         });
+        selfieSegmentation.setOptions({ modelSelection: 1 });
 
-        selfieSegmentation.setOptions({
-            modelSelection: 1, // 1 para modelo general optimizado
-        });
+        function cambiarTituloApp() {
+            const nuevoTitulo = document.getElementById('inputTituloApp').value;
+            document.getElementById('pageTitle').innerText = nuevoTitulo;
+        }
 
-        async function procesarFotoConIA(event, tipo) {
+        // --- SISTEMA DE IA PARA QUITAR FONDO ---
+        async function procesarFotoConIA(event, tipoProceso) {
             const file = event.target.files[0];
             if (!file) return;
 
-            const loaderId = tipo === 'perfil' ? 'loaderPerfil' : 'loaderPrenda';
+            const loaderId = tipoProceso === 'registroCuerpo' ? 'loaderRegistro' : 'loaderPrenda';
             document.getElementById(loaderId).classList.remove('hidden');
 
             const img = new Image();
             const reader = new FileReader();
-
-            reader.onload = function(e) {
-                img.src = e.target.result;
-            }
+            reader.onload = (e) => { img.src = e.target.result; };
 
             img.onload = async function() {
                 const canvas = document.createElement('canvas');
@@ -217,81 +306,223 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0);
 
-                // Procesar con MediaPipe para aislar la figura
                 selfieSegmentation.onResults((results) => {
                     ctx.save();
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    // Dibujar la máscara de recorte (eliminar fondo)
                     ctx.drawImage(results.segmentationMask, 0, 0, canvas.width, canvas.height);
                     ctx.globalCompositeOperation = 'source-in';
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
                     ctx.restore();
 
                     const resultadoB64 = canvas.toDataURL('image/png');
 
-                    if (tipo === 'perfil') {
-                        fotoPerfilB64 = resultadoB64;
-                        document.getElementById('previewCuerpo').src = fotoPerfilB64;
-                        document.getElementById('marcoPerfil').classList.remove('hidden');
-                        document.getElementById('btnContinuar').classList.remove('hidden');
-                        document.getElementById('loaderPerfil').classList.add('hidden');
-                    } else {
-                        fotoPrendaB64 = resultadoB64;
-                        document.getElementById('previewPrenda').src = fotoPrendaB64;
-                        document.getElementById('marcoPrenda').classList.remove('hidden');
-                        document.getElementById('btnGuardarPrenda').classList.remove('hidden');
+                    if (tipoProceso === 'registroCuerpo') {
+                        fotoCuerpoTemp = resultadoB64;
+                        document.getElementById('imgRegistroPreview').src = fotoCuerpoTemp;
+                        document.getElementById('marcoRegistro').classList.remove('hidden');
+                        document.getElementById('btnFinalizarRegistro').classList.remove('hidden');
+                        document.getElementById('loaderRegistro').classList.add('hidden');
+                    } else if (tipoProceso === 'nuevaPrenda') {
+                        imagenPrendaTemp = resultadoB64;
+                        document.getElementById('imgPrendaPreview').src = imagenPrendaTemp;
+                        document.getElementById('marcoPrendaPreview').classList.remove('hidden');
+                        document.getElementById('btnGuardarPrendaCloud').classList.remove('hidden');
                         document.getElementById('loaderPrenda').classList.add('hidden');
                     }
                 });
 
-                await selfieSegmentation.send({image: img});
-            }
-
+                await selfieSegmentation.send({ image: img });
+            };
             reader.readAsDataURL(file);
         }
 
-        function irASeccionPrendas() {
-            document.getElementById('seccionPerfil').classList.add('hidden');
-            document.getElementById('seccionPrendas').classList.remove('hidden');
+        // --- AUTENTICACIÓN ---
+        async function ejecutarAuth(accion) {
+            const correo = document.getElementById('authCorreo').value.trim();
+            const password = document.getElementById('authPassword').value.trim();
+
+            if (!correo || !password) {
+                alert("Completa todos los campos.");
+                return;
+            }
+
+            alert("Conectando con Google Sheets...");
+            try {
+                const respuesta = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify({ accion: "login", correo, password })
+                });
+                const res = await respuesta.json();
+
+                if (res.status === "success") {
+                    usuarioActual = correo;
+                    document.getElementById('saludoUsuario').innerText = "Armario de: " + correo;
+                    document.getElementById('seccionAuth').classList.add('hidden');
+                    document.getElementById('seccionPrincipal').classList.remove('hidden');
+                    cargarPrendasArmario();
+                } else {
+                    alert(res.message);
+                }
+            } catch (e) {
+                alert("Error de conexión con el Apps Script.");
+            }
         }
 
-        async function guardarPrendaArmario() {
-            const categoria = document.getElementById('categoriaPrenda').value;
-            if (!fotoPrendaB64) {
-                alert("Primero selecciona y procesa una prenda.");
+        function mostrarRegistroCuerpo() {
+            const correo = document.getElementById('authCorreo').value.trim();
+            const password = document.getElementById('authPassword').value.trim();
+            if (!correo || !password) {
+                alert("Ingresa correo y contraseña primero.");
+                return;
+            }
+            document.getElementById('seccionAuth').classList.add('hidden');
+            document.getElementById('seccionRegistroCuerpo').classList.remove('hidden');
+        }
+
+        function volverLogin() {
+            document.getElementById('seccionRegistroCuerpo').classList.add('hidden');
+            document.getElementById('seccionAuth').classList.remove('hidden');
+        }
+
+        async function completarRegistroUsuario() {
+            const correo = document.getElementById('authCorreo').value.trim();
+            const password = document.getElementById('authPassword').value.trim();
+
+            if (!fotoCuerpoTemp) {
+                alert("Falta capturar tu foto base.");
                 return;
             }
 
-            if (URL_SCRIPT === "TU_URL_DE_APPS_SCRIPT_AQUI") {
-                alert("¡Prenda procesada con éxito! (Configura tu URL de Google Apps Script para guardarla en la hoja).");
-                return;
+            alert("Registrando usuario en Google Sheets...");
+            try {
+                const respuesta = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify({
+                        accion: "registro",
+                        correo,
+                        password,
+                        fotoCuerpo: fotoCuerpoTemp
+                    })
+                });
+                const res = await respuesta.json();
+                if (res.status === "success") {
+                    alert("¡Cuenta creada con éxito! Ahora inicia sesión.");
+                    volverLogin();
+                } else {
+                    alert(res.message);
+                }
+            } catch (e) {
+                alert("Error al registrar.");
             }
+        }
 
-            alert("Guardando prenda en Google Sheets...");
+        function cerrarSesion() {
+            usuarioActual = null;
+            document.getElementById('seccionPrincipal').classList.add('hidden');
+            document.getElementById('seccionAuth').classList.remove('hidden');
+        }
 
+        // --- GESTIÓN DE PRENDAS ---
+        async function guardarPrendaEnNube() {
+            const categoria = document.getElementById('categoriaNuevaPrenda').value;
+            if (!imagenPrendaTemp) return;
+
+            alert("Guardando prenda...");
             try {
                 const respuesta = await fetch(URL_SCRIPT, {
                     method: "POST",
                     body: JSON.stringify({
                         accion: "guardarPrenda",
-                        correo: "usuario@armario.com",
-                        categoria: categoria,
-                        urlImagen: fotoPrendaB64
+                        correo: usuarioActual,
+                        categoria,
+                        urlImagen: imagenPrendaTemp
                     })
                 });
-
-                const resultado = await respuesta.json();
-                if (resultado.status === "success") {
-                    alert("¡Prenda guardada en Google Sheets con fondo transparente!");
-                } else {
-                    alert("Hubo un error al registrar en la hoja.");
+                const res = await respuesta.json();
+                if (res.status === "success") {
+                    alert("¡Prenda guardada en el armario!");
+                    document.getElementById('marcoPrendaPreview').classList.add('hidden');
+                    document.getElementById('btnGuardarPrendaCloud').classList.add('hidden');
+                    imagenPrendaTemp = "";
+                    cargarPrendasArmario();
                 }
-            } catch (error) {
-                console.error("Error:", error);
-                alert("Error de conexión al enviar a Google Sheets.");
+            } catch (e) {
+                alert("Error al guardar prenda.");
             }
+        }
+
+        async function cargarPrendasArmario() {
+            try {
+                const respuesta = await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify({ accion: "obtenerPrendas", correo: usuarioActual })
+                });
+                const res = await respuesta.json();
+                if (res.status === "success") {
+                    listaMisPrendas = res.prendas;
+                    renderizarGrillaPrendas();
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderizarGrillaPrendas() {
+            const grid = document.getElementById('listaPrendasGrid');
+            grid.innerHTML = "";
+
+            listaMisPrendas.forEach(p => {
+                grid.innerHTML += `
+                    <div class="card-prenda">
+                        <img src="${p.urlImagen}" alt="Prenda">
+                        <span class="badge-estado badge-disponible">Disponible</span>
+                        <button style="padding: 5px; font-size: 11px;" onclick="cambiarEstadoPrenda('${p.idPrenda}', 'lavanderia')">Lavandería</button>
+                    </div>
+                `;
+            });
+        }
+
+        async function cambiarEstadoPrenda(idPrenda, nuevoEstado) {
+            try {
+                await fetch(URL_SCRIPT, {
+                    method: "POST",
+                    body: JSON.stringify({ accion: "cambiarEstado", idPrenda, estado: nuevoEstado })
+                });
+                cargarPrendasArmario();
+            } catch (e) {
+                alert("No se pudo cambiar el estado.");
+            }
+        }
+
+        // --- NAVEGACIÓN DE PESTAÑAS INTERNAS ---
+        function cambiarTab(tab) {
+            if (tab === 'armario') {
+                document.getElementById('tabArmario').classList.remove('hidden');
+                document.getElementById('tabOutfit').classList.add('hidden');
+            } else {
+                document.getElementById('tabArmario').classList.add('hidden');
+                document.getElementById('tabOutfit').classList.remove('hidden');
+            }
+        }
+
+        function generarOutfitIA() {
+            const ocasion = document.getElementById('selectOcasion').value;
+            const contenedor = document.getElementById('resultadoOutfit');
+            
+            if (listaMisPrendas.length === 0) {
+                contenedor.innerHTML = `<p style="color: var(--danger);">No tienes prendas disponibles en este momento.</p>`;
+                return;
+            }
+
+            // Selecciona aleatoriamente una prenda disponible para armar la combinación
+            const prendaAleatoria = listaMisPrendas[Math.floor(Math.random() * listaMisPrendas.length)];
+            
+            contenedor.innerHTML = `
+                <p style="color: var(--accent); font-weight: bold;">¡Outfit ideal para: ${ocasion}!</p>
+                <div class="preview-box" style="margin: 0 auto;">
+                    <img src="${prendaAleatoria.urlImagen}" alt="Outfit seleccionado">
+                </div>
+            `;
         }
     </script>
 </body>
