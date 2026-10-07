@@ -241,7 +241,7 @@
             if(!file) return;
             mostrarLoader("La IA está limpiando el fondo de tu foto de cuerpo completo...");
             try {
-                const resultBlob = await imglyRemoveBackground(File);
+                const resultBlob = await imglyRemoveBackground(file);
                 const reader = new FileReader();
                 reader.onloadend = function() {
                     fotoCuerpoB64 = reader.result;
