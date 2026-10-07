@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="pageTitle">Mi Armario IA</title>
     
-    <!-- MediaPipe Selfie Segmentation para quitar fondos fluidamente en celulares -->
+    <!-- MediaPipe Selfie Segmentation -->
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
 
     <style>
@@ -127,7 +127,7 @@
             object-fit: contain;
         }
 
-        /* Spinner Animado (Bolita de carga fluida) */
+        /* Spinner Animado Fluido */
         .spinner-container {
             display: flex;
             align-items: center;
@@ -151,7 +151,6 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Cuadrícula de armario */
         .grid-prendas {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -196,7 +195,6 @@
 </head>
 <body>
 
-    <!-- Nombre de la app editable en la parte superior -->
     <input type="text" id="inputTituloApp" class="header-editable" value="✨ Mi Armario IA ✨" oninput="cambiarTituloApp()">
 
     <!-- SECCIÓN 1: LOGIN / REGISTRO -->
@@ -283,9 +281,7 @@
 
             <button id="btnGuardarPrendaCloud" class="hidden" onclick="guardarPrendaEnNube()">Guardar en el Armario</button>
 
-            <div class="grid-prendas" id="listaPrendasGrid">
-                <!-- Se cargan dinámicamente -->
-            </div>
+            <div class="grid-prendas" id="listaPrendasGrid"></div>
         </div>
 
         <!-- Sub-pestaña Outfit -->
@@ -299,35 +295,27 @@
             </select>
             <button onclick="generarOutfitIA()">Generar Outfit Inteligente</button>
             
-            <div id="resultadoOutfit" style="margin-top: 15px;">
-                <!-- Aquí se montará el resultado -->
-            </div>
+            <div id="resultadoOutfit" style="margin-top: 15px;"></div>
         </div>
 
         <button class="btn-secondary" style="margin-top: 20px;" onclick="cerrarSesion()">Cerrar Sesión</button>
     </div>
 
     <script>
-        // CONFIGURACIÓN: Pega aquí tu URL de Google Apps Script (.gs) que termina en /exec
-        const URL_SCRIPT = https://script.google.com/macros/s/AKfycbx8KknY91xDvu9Z_vU3FEzPMf-OasAd_bGEeq8B-awUeWp00y2XNF9QHMfLGImj0WQK/exec;
+        // CONFIGURACIÓN: Pega aquí tu URL de Google Apps Script que termina en /exec
+        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbx8KknY91xDvu9Z_vU3FEzPMf-OasAd_bGEeq8B-awUeWp00y2XNF9QHMfLGImj0WQK/exec";
 
         let usuarioActual = null;
         let fotoCuerpoTemp = "";
         let imagenPrendaTemp = "";
         let listaMisPrendas = [];
 
-        // Inicializar IA MediaPipe Selfie Segmentation
-        const selfieSegmentation = new SelfieSegmentation({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
-        });
-        selfieSegmentation.setOptions({ modelSelection: 1 });
-
         function cambiarTituloApp() {
             const nuevoTitulo = document.getElementById('inputTituloApp').value;
             document.getElementById('pageTitle').innerText = nuevoTitulo;
         }
 
-        // --- SISTEMA DE IA PARA QUITAR FONDO ---
+        // --- SISTEMA DE IA CARGADO DE FORMA SEGURA (SIN BLOQUEOS) ---
         async function procesarFotoConIA(event, tipoProceso) {
             const file = event.target.files[0];
             if (!file) return;
@@ -335,45 +323,55 @@
             const loaderId = tipoProceso === 'registroCuerpo' ? 'loaderRegistro' : 'loaderPrenda';
             document.getElementById(loaderId).classList.remove('hidden');
 
-            const img = new Image();
-            const reader = new FileReader();
-            reader.onload = (e) => { img.src = e.target.result; };
-
-            img.onload = async function() {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-
-                selfieSegmentation.onResults((results) => {
-                    ctx.save();
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(results.segmentationMask, 0, 0, canvas.width, canvas.height);
-                    ctx.globalCompositeOperation = 'source-in';
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    ctx.restore();
-
-                    const resultadoB64 = canvas.toDataURL('image/png');
-
-                    if (tipoProceso === 'registroCuerpo') {
-                        fotoCuerpoTemp = resultadoB64;
-                        document.getElementById('imgRegistroPreview').src = fotoCuerpoTemp;
-                        document.getElementById('marcoRegistro').classList.remove('hidden');
-                        document.getElementById('btnFinalizarRegistro').classList.remove('hidden');
-                        document.getElementById('loaderRegistro').classList.add('hidden');
-                    } else if (tipoProceso === 'nuevaPrenda') {
-                        imagenPrendaTemp = resultadoB64;
-                        document.getElementById('imgPrendaPreview').src = imagenPrendaTemp;
-                        document.getElementById('marcoPrendaPreview').classList.remove('hidden');
-                        document.getElementById('btnGuardarPrendaCloud').classList.remove('hidden');
-                        document.getElementById('loaderPrenda').classList.add('hidden');
-                    }
+            try {
+                const selfieSegmentation = new SelfieSegmentation({
+                    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
                 });
+                selfieSegmentation.setOptions({ modelSelection: 1 });
 
-                await selfieSegmentation.send({ image: img });
-            };
-            reader.readAsDataURL(file);
+                const img = new Image();
+                const reader = new FileReader();
+                reader.onload = (e) => { img.src = e.target.result; };
+
+                img.onload = async function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+
+                    selfieSegmentation.onResults((results) => {
+                        ctx.save();
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.drawImage(results.segmentationMask, 0, 0, canvas.width, canvas.height);
+                        ctx.globalCompositeOperation = 'source-in';
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        ctx.restore();
+
+                        const resultadoB64 = canvas.toDataURL('image/png');
+
+                        if (tipoProceso === 'registroCuerpo') {
+                            fotoCuerpoTemp = resultadoB64;
+                            document.getElementById('imgRegistroPreview').src = fotoCuerpoTemp;
+                            document.getElementById('marcoRegistro').classList.remove('hidden');
+                            document.getElementById('btnFinalizarRegistro').classList.remove('hidden');
+                            document.getElementById('loaderRegistro').classList.add('hidden');
+                        } else if (tipoProceso === 'nuevaPrenda') {
+                            imagenPrendaTemp = resultadoB64;
+                            document.getElementById('imgPrendaPreview').src = imagenPrendaTemp;
+                            document.getElementById('marcoPrendaPreview').classList.remove('hidden');
+                            document.getElementById('btnGuardarPrendaCloud').classList.remove('hidden');
+                            document.getElementById('loaderPrenda').classList.add('hidden');
+                        }
+                    });
+
+                    await selfieSegmentation.send({ image: img });
+                };
+                reader.readAsDataURL(file);
+            } catch (err) {
+                document.getElementById(loaderId).classList.add('hidden');
+                alert("Error al procesar la imagen con IA.");
+            }
         }
 
         // --- AUTENTICACIÓN ---
@@ -409,7 +407,7 @@
                 }
             } catch (e) {
                 loader.classList.add('hidden');
-                alert("Error de conexión con Google Sheets. Verifica la URL.");
+                alert("Error de conexión con Google Sheets. Verifica tu URL.");
             }
         }
 
@@ -558,7 +556,7 @@
             }
         }
 
-        // --- NAVEGACIÓN DE PESTAÑAS INTERNAS ---
+        // --- NAVEGACIÓN DE PESTAÑAS ---
         function cambiarTab(tab) {
             if (tab === 'armario') {
                 document.getElementById('tabArmario').classList.remove('hidden');
